@@ -1,46 +1,59 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, Response
 from flask_cors import CORS
 import pandas as pd
 import os
+import json
+import numpy as np
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for frontend calls
+CORS(app)
 
 # Load datasets
 base_dir = os.path.join(os.path.dirname(__file__), 'data')
 
+def clean_df(df):
+    return df.replace({np.nan: None, np.inf: None, -np.inf: None})
+
 datasets = {
-    'products': pd.read_csv(os.path.join(base_dir, 'inventory_items.csv')),
-    'orders': pd.read_csv(os.path.join(base_dir, 'orders.csv')),
-    'order_items': pd.read_csv(os.path.join(base_dir, 'order_items.csv')),
-    'users': pd.read_csv(os.path.join(base_dir, 'users.csv')),
-    'distribution_centers': pd.read_csv(os.path.join(base_dir, 'distribution_centers.csv')),
+    'products': clean_df(pd.read_csv(os.path.join(base_dir, 'inventory_items.csv'))),
+    'orders': clean_df(pd.read_csv(os.path.join(base_dir, 'orders.csv'))),
+    'order_items': clean_df(pd.read_csv(os.path.join(base_dir, 'order_items.csv'))),
+    'users': clean_df(pd.read_csv(os.path.join(base_dir, 'users.csv'))),
+    'distribution_centers': clean_df(pd.read_csv(os.path.join(base_dir, 'distribution_centers.csv'))),
 }
 
-# Routes
+# Safe JSON response
+def safe_json_response(dataframe):
+    try:
+        data = dataframe.head(100).to_dict(orient='records')
+        json_data = json.dumps(data, allow_nan=False)
+        return Response(json_data, mimetype='application/json')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/')
 def index():
     return "Flask backend is running"
 
 @app.route('/api/products')
 def get_products():
-    return jsonify(datasets['products'].head(100).to_dict(orient='records'))
+    return safe_json_response(datasets['products'])
 
 @app.route('/api/orders')
 def get_orders():
-    return jsonify(datasets['orders'].head(100).to_dict(orient='records'))
+    return safe_json_response(datasets['orders'])
 
 @app.route('/api/users')
 def get_users():
-    return jsonify(datasets['users'].head(100).to_dict(orient='records'))
+    return safe_json_response(datasets['users'])
 
 @app.route('/api/order-items')
 def get_order_items():
-    return jsonify(datasets['order_items'].head(100).to_dict(orient='records'))
+    return safe_json_response(datasets['order_items'])
 
 @app.route('/api/distribution-centers')
 def get_distribution_centers():
-    return jsonify(datasets['distribution_centers'].head(100).to_dict(orient='records'))
+    return safe_json_response(datasets['distribution_centers'])
 
 if __name__ == '__main__':
     app.run(debug=True, port=3001)
