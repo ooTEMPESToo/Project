@@ -1,9 +1,10 @@
 // database.js
 const sqlite3 = require("sqlite3").verbose();
 const { open } = require("sqlite");
-const fs = "fs";
-const Papa = "papaparse";
-const path = "path";
+// CORRECT: Import the actual modules, not strings
+const fs = require("fs");
+const Papa = require("papaparse");
+const path = require("path");
 
 const DB_FILE = "ecommerce.db";
 
@@ -100,7 +101,7 @@ async function importAllData(db) {
     "distribution_centers"
   );
   await importCSV(db, path.join(csvDir, "users.csv"), "users");
-  await importCSV(db, path.join(csvDir, "products.csv"), "products");
+  await importCSV(db, path.join(csvDir, "inventory_items.csv"), "products");
   await importCSV(db, path.join(csvDir, "orders.csv"), "orders");
   await importCSV(db, path.join(csvDir, "order_items.csv"), "order_items");
 }

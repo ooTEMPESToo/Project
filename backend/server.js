@@ -15,6 +15,16 @@ app.use(express.static(path.join(__dirname, "public")));
 // We wrap our routes in a function that receives the db instance
 async function setupRoutes() {
   const db = await dbPromise;
+  // Add a new root route for the base URL
+  app.get("/", (req, res) => {
+    res.status(200).json({
+      message: "Welcome to the E-commerce API!",
+      endpoints: {
+        list_all_products: "/api/products",
+        get_user_by_id: "/api/users/{id}",
+      },
+    });
+  });
 
   app.get("/api/hello", (req, res) => {
     res.json({ message: "Hello from the server with SQLite!" });
