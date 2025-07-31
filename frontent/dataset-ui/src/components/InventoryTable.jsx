@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
+// --- Styles ---
 const tableStyle = {
   width: "90%",
   margin: "20px auto",
@@ -22,10 +23,22 @@ const rowStyle = {
   textAlign: "center",
 };
 
+const filterContainerStyle = {
+  width: "90%",
+  margin: "20px auto",
+  display: "flex",
+  justifyContent: "center",
+  gap: "20px",
+};
+
 const searchStyle = {
   width: "300px",
-  margin: "20px auto",
-  display: "block",
+  padding: "10px",
+  fontSize: "16px",
+};
+
+const selectStyle = {
+  width: "200px",
   padding: "10px",
   fontSize: "16px",
 };
@@ -39,34 +52,62 @@ const buttonStyle = {
 
 function InventoryTable() {
   const [products, setProducts] = useState([]);
+  const [departments, setDepartments] = useState([]); // NEW: State for departments
+  const [selectedDept, setSelectedDept] = useState(""); // NEW: State for selected department
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState(null);
   const [sortOrder, setSortOrder] = useState("asc");
   const [page, setPage] = useState(0);
   const itemsPerPage = 10;
 
+  // --- Data Fetching ---
+
+  // NEW: Fetch departments when the component loads
   useEffect(() => {
     axios
-      .get("http://localhost:3001/api/products")
+      .get("http://localhost:3001/api/departments")
+      .then((response) => setDepartments(response.data))
+      .catch((error) => {
+        console.error("Error fetching departments:", error);
+        setDepartments([]);
+      });
+  }, []);
+
+  // NEW: Fetch products whenever the selected department changes
+  useEffect(() => {
+    let url = "http://localhost:3001/api/products";
+    if (selectedDept) {
+      url = `http://localhost:3001/api/departments/${selectedDept}/products`;
+    }
+
+    axios
+      .get(url)
       .then((response) => setProducts(response.data))
       .catch((error) => {
         console.error("Error fetching products:", error);
         setProducts([]);
       });
-  }, []);
+  }, [selectedDept]); // This effect re-runs when selectedDept changes
 
-  // Search + Sort Logic
+  // --- Search + Sort Logic ---
   const filteredProducts = products
     .filter((prod) =>
-      prod.product_name.toLowerCase().includes(search.toLowerCase())
+      // Use 'product_name' which exists in the API response
+      (prod.product_name || "").toLowerCase().includes(search.toLowerCase())
     )
     .sort((a, b) => {
       if (!sortKey) return 0;
+      // Handle potential number sorting for ID
+      if (sortKey === "product_id") {
+        return sortOrder === "asc"
+          ? a[sortKey] - b[sortKey]
+          : b[sortKey] - a[sortKey];
+      }
       const aVal = a[sortKey] || "";
       const bVal = b[sortKey] || "";
       return sortOrder === "asc"
-        ? aVal.localeCompare(bVal)
-        : bVal.localeCompare(aVal);
+        ? String(aVal).localeCompare(String(bVal))
+        : String(bVal).localeCompare(String(aVal));
     });
 
   const paginatedProducts = filteredProducts.slice(
@@ -89,13 +130,29 @@ function InventoryTable() {
         Inventory Table
       </h2>
 
-      <input
-        type="text"
-        placeholder="Search by product name..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        style={searchStyle}
-      />
+      {/* --- Filter Controls --- */}
+      <div style={filterContainerStyle}>
+        <input
+          type="text"
+          placeholder="Search by product name..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={searchStyle}
+        />
+        {/* NEW: Department Filter Dropdown */}
+        <select
+          value={selectedDept}
+          onChange={(e) => setSelectedDept(e.target.value)}
+          style={selectStyle}
+        >
+          <option value="">All Departments</option>
+          {departments.map((dept) => (
+            <option key={dept.id} value={dept.id}>
+              {dept.name} ({dept.product_count})
+            </option>
+          ))}
+        </select>
+      </div>
 
       <table style={tableStyle}>
         <thead>
@@ -124,7 +181,7 @@ function InventoryTable() {
             </tr>
           ) : (
             paginatedProducts.map((prod, index) => (
-              <tr key={index}>
+              <tr key={prod.id || index}>
                 <td style={rowStyle}>{prod.product_id}</td>
                 <td style={rowStyle}>{prod.product_name}</td>
                 <td style={rowStyle}>--</td>
@@ -135,7 +192,7 @@ function InventoryTable() {
         </tbody>
       </table>
 
-      {/* Pagination */}
+      {/* --- Pagination --- */}
       <div style={{ textAlign: "center" }}>
         <button
           style={buttonStyle}
